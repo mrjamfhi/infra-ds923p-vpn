@@ -140,20 +140,11 @@
              - Username (looks like: aBcDeFgHiJkL...)
              - Password (click "Show" to reveal)
           
-          4. OPTIONAL USERNAME SUFFIXES:
-             Your .ovpn file may suggest suffixes like +b:4
-             
-             Available options:
-               +b:4  - Enforce exit through specific server
-               +f1   - Enable anti-malware filtering (NetShield)
-               +f2   - Enable anti-malware + ad-blocking
-               +nr   - Enable Moderate NAT
-             
-             Suffixes can be combined, e.g.:
-               username+b:4+f2+nr
-             
-             Recommended: username+b:4+f2
-             (enforced exit + malware/ad blocking)
+          ─────────────────────────────────────────────────────────────
+          NOTE: Username suffix ({{ vpn_username_suffix }}) will be
+          added automatically after you create the VPN profile.
+          Enter the username WITHOUT any suffixes in DSM.
+          ─────────────────────────────────────────────────────────────
           
           ═══════════════════════════════════════════════════════════
           
@@ -183,7 +174,7 @@
           
           5. Fill in:
              - Profile name: {{ vpn_profile_name }}
-             - Username: [Your OpenVPN username from Step 2]
+             - Username: [Your OpenVPN username - WITHOUT suffixes]
              - Password: [Your OpenVPN password from Step 2]
              - Import .ovpn file: Browse to {{ ovpn_config_file }}
              
@@ -196,13 +187,91 @@
              
              Click Apply
           
-          7. Select the new VPN profile and click "Connect"
-          
-          8. Wait for status to show "Connected"
+          7. DO NOT CONNECT YET - we need to add username suffix first
           
           ═══════════════════════════════════════════════════════════
           
-          Press Enter when VPN is connected and showing "Connected" status
+          Press Enter when VPN profile is created (but NOT connected)
+
+    # =========================================================================
+    # Step 4: Add Username Suffix (NetShield, etc.)
+    # =========================================================================
+
+    - name: Find OpenVPN auth file
+      ansible.builtin.shell: |
+        grep -r "auth-user-pass" /usr/syno/etc/synovpnclient/openvpn/*.conf 2>/dev/null | head -1 | sed 's/.*auth-user-pass //'
+      register: auth_file_result
+      changed_when: false
+      failed_when: false
+
+    - name: Check if auth file exists
+      ansible.builtin.stat:
+        path: "{{ auth_file_result.stdout | trim }}"
+      register: auth_file_stat
+      when: auth_file_result.stdout | trim | length > 0
+
+    - name: Display auth file location
+      ansible.builtin.debug:
+        msg: "Found auth file: {{ auth_file_result.stdout | trim }}"
+      when: auth_file_result.stdout | trim | length > 0
+
+    - name: Add username suffix
+      ansible.builtin.shell: |
+        AUTH_FILE="{{ auth_file_result.stdout | trim }}"
+        if [ -f "$AUTH_FILE" ]; then
+          # Get current username (first line)
+          USERNAME=$(head -1 "$AUTH_FILE")
+          # Check if suffix already present
+          if echo "$USERNAME" | grep -q '+'; then
+            echo "Suffix already present: $USERNAME"
+          else
+            # Get password (second line)
+            PASSWORD=$(tail -1 "$AUTH_FILE")
+            # Write back with suffix
+            echo "${USERNAME}{{ vpn_username_suffix }}" > "$AUTH_FILE"
+            echo "$PASSWORD" >> "$AUTH_FILE"
+            echo "Added suffix: ${USERNAME}{{ vpn_username_suffix }}"
+          fi
+        else
+          echo "Auth file not found"
+          exit 1
+        fi
+      register: suffix_result
+      when: 
+        - auth_file_result.stdout | trim | length > 0
+        - vpn_username_suffix | length > 0
+
+    - name: Username suffix result
+      ansible.builtin.debug:
+        msg: "{{ suffix_result.stdout | default('No suffix configured or auth file not found') }}"
+      when: vpn_username_suffix | length > 0
+
+    - name: Skip suffix message
+      ansible.builtin.debug:
+        msg: "No username suffix configured - skipping"
+      when: vpn_username_suffix | length == 0
+
+    - name: "MANUAL STEP: Connect VPN"
+      ansible.builtin.pause:
+        prompt: |
+          
+          ═══════════════════════════════════════════════════════════
+          STEP 4: Connect VPN
+          ═══════════════════════════════════════════════════════════
+          
+          Username suffix has been added: {{ vpn_username_suffix }}
+          
+          Now connect the VPN:
+          
+          1. In DSM: Control Panel → Network → Network Interface
+          
+          2. Select {{ vpn_profile_name }} and click "Connect"
+          
+          3. Wait for status to show "Connected"
+          
+          ═══════════════════════════════════════════════════════════
+          
+          Press Enter when VPN is connected
 
     # =========================================================================
     # Step 5: Verify VPN Connection

@@ -78,6 +78,24 @@ The monitor script sends notifications via `synodsmnotify`:
 
 Notifications only fire on state *changes* (not every 5 minutes).
 
+## Username Suffix (NetShield)
+
+DSM UI doesn't accept ProtonVPN username suffixes. The playbook automatically adds them after you create the VPN profile.
+
+Configure in `vars/default.yml`:
+```yaml
+vpn_username_suffix: "+f2"
+```
+
+| Suffix | Feature |
+|--------|---------|
+| `+f1` | Anti-malware (NetShield) |
+| `+f2` | Anti-malware + ad-blocking |
+| `+nr` | Moderate NAT |
+| `+b:N` | Enforce exit server (N from .ovpn) |
+
+Combine as needed: `+f2+nr`
+
 ## Kill Switch
 
 The kill switch blocks ALL outbound internet traffic except:

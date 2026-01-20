@@ -10,6 +10,16 @@
 # VPN profile name (shown in DSM UI)
 vpn_profile_name: "ProtonVPN_UK"
 
+# Username suffix for ProtonVPN features
+# Options:
+#   +b:4  - Enforce exit through specific server (check .ovpn file for number)
+#   +f1   - Anti-malware filtering (NetShield)
+#   +f2   - Anti-malware + ad-blocking
+#   +nr   - Moderate NAT
+# Can be combined, e.g.: "+b:4+f2"
+# Leave empty for no suffix
+vpn_username_suffix: "+f2"
+
 # =============================================================================
 # Network Configuration
 # =============================================================================
@@ -18,7 +28,7 @@ vpn_profile_name: "ProtonVPN_UK"
 local_network_cidr: "10.0.4.0/24"
 
 # Synology IP address (used in display messages)
-synology_ip: "10.0.4.78"
+synology_ip: "10.0.4.2"
 
 # =============================================================================
 # Paths
