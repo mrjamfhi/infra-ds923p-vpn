@@ -22,13 +22,18 @@ iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -d {{ local_network_cidr }} -j ACCEPT
 iptables -A INPUT -s {{ local_network_cidr }} -j ACCEPT
 
-# Allow Docker bridge networks (172.16.0.0/12 covers all Docker defaults)
+# Allow Docker bridge networks
+# Docker uses various ranges: 172.16.0.0/12 and 192.168.0.0/16
 iptables -A OUTPUT -d 172.16.0.0/12 -j ACCEPT
 iptables -A INPUT -s 172.16.0.0/12 -j ACCEPT
+iptables -A OUTPUT -d 192.168.0.0/16 -j ACCEPT
+iptables -A INPUT -s 192.168.0.0/16 -j ACCEPT
 
 # Allow Docker containers to reach local network (FORWARD chain)
 iptables -A FORWARD -s 172.16.0.0/12 -d {{ local_network_cidr }} -j ACCEPT
 iptables -A FORWARD -s {{ local_network_cidr }} -d 172.16.0.0/12 -j ACCEPT
+iptables -A FORWARD -s 192.168.0.0/16 -d {{ local_network_cidr }} -j ACCEPT
+iptables -A FORWARD -s {{ local_network_cidr }} -d 192.168.0.0/16 -j ACCEPT
 
 # Allow traffic through VPN interface
 iptables -A OUTPUT -o tun0 -j ACCEPT
@@ -42,4 +47,4 @@ iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
 iptables -A OUTPUT -j DROP
 
 echo "Kill switch enabled - all non-VPN traffic blocked"
-echo "Docker networks (172.16.0.0/12) and local network ({{ local_network_cidr }}) allowed"
+echo "Docker networks (172.16.0.0/12, 192.168.0.0/16) and local network ({{ local_network_cidr }}) allowed"
