@@ -18,7 +18,7 @@ vpn_profile_name: "ProtonVPN_UK"
 local_network_cidr: "10.0.4.0/24"
 
 # Synology IP address (used in display messages)
-synology_ip: "10.0.4.2"
+synology_ip: "10.0.4.78"
 
 # =============================================================================
 # Paths
