@@ -28,7 +28,7 @@ vpn_username_suffix: "+f2"
 local_network_cidr: "10.0.4.0/24"
 
 # Synology IP address (used in display messages)
-synology_ip: "10.0.4.79"
+synology_ip: "10.0.4.78"
 
 # =============================================================================
 # Paths
