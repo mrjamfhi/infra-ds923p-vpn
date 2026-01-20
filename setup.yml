@@ -197,54 +197,53 @@
     # Step 4: Add Username Suffix (NetShield, etc.)
     # =========================================================================
 
-    - name: Find OpenVPN auth file
-      ansible.builtin.shell: |
-        grep -r "auth-user-pass" /usr/syno/etc/synovpnclient/openvpn/*.conf 2>/dev/null | head -1 | sed 's/.*auth-user-pass //'
-      register: auth_file_result
-      changed_when: false
-      failed_when: false
-
-    - name: Check if auth file exists
+    - name: Check if ovpnclient.conf exists
       ansible.builtin.stat:
-        path: "{{ auth_file_result.stdout | trim }}"
-      register: auth_file_stat
-      when: auth_file_result.stdout | trim | length > 0
+        path: /usr/syno/etc/synovpnclient/openvpn/ovpnclient.conf
+      register: ovpn_conf_stat
 
-    - name: Display auth file location
+    - name: Read current username
+      ansible.builtin.shell: |
+        grep "^user=" /usr/syno/etc/synovpnclient/openvpn/ovpnclient.conf | cut -d'=' -f2
+      register: current_username
+      when: ovpn_conf_stat.stat.exists
+      changed_when: false
+
+    - name: Display current username
       ansible.builtin.debug:
-        msg: "Found auth file: {{ auth_file_result.stdout | trim }}"
-      when: auth_file_result.stdout | trim | length > 0
+        msg: "Current username: {{ current_username.stdout }}"
+      when: ovpn_conf_stat.stat.exists and current_username.stdout | length > 0
 
     - name: Add username suffix
       ansible.builtin.shell: |
-        AUTH_FILE="{{ auth_file_result.stdout | trim }}"
-        if [ -f "$AUTH_FILE" ]; then
-          # Get current username (first line)
-          USERNAME=$(head -1 "$AUTH_FILE")
-          # Check if suffix already present
-          if echo "$USERNAME" | grep -q '+'; then
-            echo "Suffix already present: $USERNAME"
-          else
-            # Get password (second line)
-            PASSWORD=$(tail -1 "$AUTH_FILE")
-            # Write back with suffix
-            echo "${USERNAME}{{ vpn_username_suffix }}" > "$AUTH_FILE"
-            echo "$PASSWORD" >> "$AUTH_FILE"
-            echo "Added suffix: ${USERNAME}{{ vpn_username_suffix }}"
-          fi
+        CONF_FILE="/usr/syno/etc/synovpnclient/openvpn/ovpnclient.conf"
+        CURRENT_USER="{{ current_username.stdout }}"
+        SUFFIX="{{ vpn_username_suffix }}"
+        
+        # Check if suffix already present
+        if echo "$CURRENT_USER" | grep -q '+'; then
+          echo "Suffix already present: $CURRENT_USER"
         else
-          echo "Auth file not found"
-          exit 1
+          # Add suffix to username
+          NEW_USER="${CURRENT_USER}${SUFFIX}"
+          sed -i "s/^user=.*/user=${NEW_USER}/" "$CONF_FILE"
+          echo "Updated username to: ${NEW_USER}"
         fi
       register: suffix_result
       when: 
-        - auth_file_result.stdout | trim | length > 0
+        - ovpn_conf_stat.stat.exists
+        - current_username.stdout | length > 0
         - vpn_username_suffix | length > 0
 
     - name: Username suffix result
       ansible.builtin.debug:
-        msg: "{{ suffix_result.stdout | default('No suffix configured or auth file not found') }}"
-      when: vpn_username_suffix | length > 0
+        msg: "{{ suffix_result.stdout | default('No changes made') }}"
+      when: suffix_result.stdout is defined
+
+    - name: Config not found warning
+      ansible.builtin.debug:
+        msg: "⚠️  ovpnclient.conf not found - create VPN profile first"
+      when: not ovpn_conf_stat.stat.exists
 
     - name: Skip suffix message
       ansible.builtin.debug:
