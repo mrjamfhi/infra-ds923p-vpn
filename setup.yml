@@ -334,6 +334,10 @@
           iptables -A OUTPUT -d {{ local_network_cidr }} -j ACCEPT
           iptables -A INPUT -s {{ local_network_cidr }} -j ACCEPT
           
+          # Allow Docker bridge networks (172.16.0.0/12 covers all Docker defaults)
+          iptables -A OUTPUT -d 172.16.0.0/12 -j ACCEPT
+          iptables -A INPUT -s 172.16.0.0/12 -j ACCEPT
+          
           # Allow traffic through VPN interface
           iptables -A OUTPUT -o tun0 -j ACCEPT
           iptables -A INPUT -i tun0 -j ACCEPT
@@ -346,6 +350,7 @@
           iptables -A OUTPUT -j DROP
           
           echo "Kill switch enabled - all non-VPN traffic blocked"
+          echo "Docker networks (172.16.0.0/12) and local network ({{ local_network_cidr }}) allowed"
 
     - name: Create kill switch disable script
       ansible.builtin.copy:
