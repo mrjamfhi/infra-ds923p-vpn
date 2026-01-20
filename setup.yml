@@ -140,10 +140,20 @@
              - Username (looks like: aBcDeFgHiJkL...)
              - Password (click "Show" to reveal)
           
-          4. OPTIONAL: To enable NetShield (ad/malware blocking):
-             - Add +f1 to username for malware blocking
-             - Add +f2 to username for malware + ads + trackers
-             Example: aBcDeFgHiJkL+f2
+          4. OPTIONAL USERNAME SUFFIXES:
+             Your .ovpn file may suggest suffixes like +b:4
+             
+             Available options:
+               +b:4  - Enforce exit through specific server
+               +f1   - Enable anti-malware filtering (NetShield)
+               +f2   - Enable anti-malware + ad-blocking
+               +nr   - Enable Moderate NAT
+             
+             Suffixes can be combined, e.g.:
+               username+b:4+f2+nr
+             
+             Recommended: username+b:4+f2
+             (enforced exit + malware/ad blocking)
           
           ═══════════════════════════════════════════════════════════
           
@@ -273,19 +283,15 @@
           iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
           iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
           
-          # Allow local network traffic (adjust CIDR as needed)
+          # Allow local network traffic
           iptables -A OUTPUT -d {{ local_network_cidr }} -j ACCEPT
           iptables -A INPUT -s {{ local_network_cidr }} -j ACCEPT
-          
-          # Allow DNS to VPN DNS server
-          iptables -A OUTPUT -d {{ vpn_dns_primary }} -p udp --dport 53 -j ACCEPT
           
           # Allow traffic through VPN interface
           iptables -A OUTPUT -o tun0 -j ACCEPT
           iptables -A INPUT -i tun0 -j ACCEPT
           
           # Allow VPN connection establishment (UDP 1194 or TCP 443)
-          # Note: This allows initial connection to VPN server
           iptables -A OUTPUT -p udp --dport 1194 -j ACCEPT
           iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
           

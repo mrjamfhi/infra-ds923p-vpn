@@ -10,14 +10,6 @@
 # VPN profile name (shown in DSM UI)
 vpn_profile_name: "ProtonVPN_UK"
 
-# ProtonVPN server to connect to
-# Download config from: https://account.protonvpn.com/downloads
-# Recommended: Choose a server geographically close to you
-vpn_server_hostname: "uk.protonvpn.net"
-
-# OpenVPN protocol (udp recommended, tcp for restrictive networks)
-vpn_protocol: "udp"
-
 # =============================================================================
 # Network Configuration
 # =============================================================================
@@ -25,11 +17,8 @@ vpn_protocol: "udp"
 # Local network CIDR (traffic to local network bypasses VPN)
 local_network_cidr: "10.0.4.0/24"
 
-# Synology IP address
+# Synology IP address (used in display messages)
 synology_ip: "10.0.4.2"
-
-# DNS servers to use when VPN is connected (ProtonVPN DNS)
-vpn_dns_primary: "10.8.8.1"
 
 # =============================================================================
 # Paths
