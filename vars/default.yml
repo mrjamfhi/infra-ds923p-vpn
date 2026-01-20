@@ -18,7 +18,7 @@ vpn_profile_name: "ProtonVPN_UK"
 #   +nr   - Moderate NAT
 # Can be combined, e.g.: "+b:4+f2"
 # Leave empty for no suffix
-vpn_username_suffix: "+f2"
+vpn_username_suffix: "+b:4+f2+nr"
 
 # =============================================================================
 # Network Configuration
