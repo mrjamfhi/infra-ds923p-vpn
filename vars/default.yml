@@ -34,8 +34,5 @@ synology_ip: "10.0.4.78"
 # Paths
 # =============================================================================
 
-# Where to store VPN config files on Synology
+# Where to store VPN scripts on Synology
 vpn_config_dir: "/volume1/vpn-config"
-
-# OpenVPN config file (download from ProtonVPN and place here)
-ovpn_config_file: "{{ vpn_config_dir }}/protonvpn.ovpn"

@@ -89,33 +89,12 @@
           4. Choose a server (e.g., UK, Netherlands, Switzerland)
              Click "Download" next to your chosen server
           
-          5. Copy the .ovpn file to Synology:
-          
-             Option A - From your computer:
-               scp ~/Downloads/*.ovpn jamie@synology:{{ vpn_config_dir }}/protonvpn.ovpn
-          
-             Option B - Direct on Synology (if you have the URL):
-               wget -O {{ vpn_config_dir }}/protonvpn.ovpn "URL_FROM_PROTONVPN"
+          5. Save the .ovpn file to your computer
+             (You will upload it via DSM web interface in Step 3)
           
           ═══════════════════════════════════════════════════════════
           
-          Press Enter when you have copied the .ovpn file to {{ vpn_config_dir }}/
-
-    - name: Check if OpenVPN config exists
-      ansible.builtin.stat:
-        path: "{{ ovpn_config_file }}"
-      register: ovpn_stat
-
-    - name: Fail if config not found
-      ansible.builtin.fail:
-        msg: |
-          OpenVPN config not found at {{ ovpn_config_file }}
-          Please copy the .ovpn file and try again.
-      when: not ovpn_stat.stat.exists
-
-    - name: Config file found
-      ansible.builtin.debug:
-        msg: "✅ OpenVPN config found: {{ ovpn_config_file }}"
+          Press Enter when you have downloaded the .ovpn file
 
     # =========================================================================
     # Step 3: Get OpenVPN Credentials (Manual)
@@ -176,7 +155,7 @@
              - Profile name: {{ vpn_profile_name }}
              - Username: [Your OpenVPN username - WITHOUT suffixes]
              - Password: [Your OpenVPN password from Step 2]
-             - Import .ovpn file: Browse to {{ ovpn_config_file }}
+             - Import .ovpn file: Click browse and select the file from your computer
              
              Click Next
           
