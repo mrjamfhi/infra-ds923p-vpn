@@ -485,12 +485,22 @@
           # Keep log file from growing too large (last 1000 lines)
           tail -1000 "$LOG_FILE" > "$LOG_FILE.tmp" && mv "$LOG_FILE.tmp" "$LOG_FILE"
 
-    - name: Setup cron job for VPN monitoring
-      ansible.builtin.cron:
-        name: "ProtonVPN monitor"
-        minute: "*/5"
-        job: "{{ vpn_config_dir }}/vpn-monitor.sh"
-        user: root
+    - name: Check if VPN monitor cron entry exists
+      ansible.builtin.shell: grep -q "vpn-monitor.sh" /etc/crontab
+      register: cron_exists
+      failed_when: false
+      changed_when: false
+
+    - name: Add VPN monitor to /etc/crontab
+      ansible.builtin.lineinfile:
+        path: /etc/crontab
+        line: "*/5\t*\t*\t*\t*\troot\t{{ vpn_config_dir }}/vpn-monitor.sh"
+        state: present
+      when: cron_exists.rc != 0
+
+    - name: Cron job status
+      ansible.builtin.debug:
+        msg: "{{ 'Cron job added to /etc/crontab' if cron_exists.rc != 0 else 'Cron job already exists' }}"
 
     # =========================================================================
     # Summary

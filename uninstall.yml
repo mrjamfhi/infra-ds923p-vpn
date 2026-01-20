@@ -56,10 +56,10 @@
       failed_when: false
 
     - name: Remove VPN monitor cron job
-      ansible.builtin.cron:
-        name: "ProtonVPN monitor"
+      ansible.builtin.lineinfile:
+        path: /etc/crontab
+        regexp: "vpn-monitor.sh"
         state: absent
-        user: root
 
     - name: Remove config directory
       ansible.builtin.file:
