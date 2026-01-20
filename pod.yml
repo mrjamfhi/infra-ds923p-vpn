@@ -1,0 +1,18 @@
+# pod.yml - Pod manifest
+
+---
+name: synology-vpn
+version: "1.0.0"
+description: ProtonVPN setup for Synology DSM with kill switch
+
+platforms: [synology]
+requires: [ansible]
+
+playbooks:
+  setup: "Guided VPN setup with manual step pauses"
+  status: "Check VPN and kill switch status"
+  uninstall: "Remove configuration, disable kill switch"
+
+notes: |
+  This pod requires manual interaction for DSM UI steps.
+  Ansible pauses and provides instructions at each manual step.

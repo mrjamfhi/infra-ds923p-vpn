@@ -1,0 +1,105 @@
+# uninstall.yml - Remove ProtonVPN configuration from Synology
+#
+# This removes kill switch rules and config files.
+# VPN profile must be removed manually from DSM UI.
+#
+# Usage:
+#   ansible-playbook uninstall.yml -i inventory.yml
+
+---
+- name: Uninstall ProtonVPN
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  become: yes
+
+  pre_tasks:
+    - name: Load configuration
+      ansible.builtin.include_vars:
+        file: vars/default.yml
+
+  tasks:
+    - name: Display uninstall warning
+      ansible.builtin.debug:
+        msg: |
+          
+          ═══════════════════════════════════════════════════════════
+          ⚠️  Uninstalling ProtonVPN Configuration
+          ═══════════════════════════════════════════════════════════
+          
+          This will:
+            1. Disable kill switch (restore normal network)
+            2. Remove config files from {{ vpn_config_dir }}
+          
+          You must manually:
+            - Disconnect VPN in DSM UI
+            - Delete VPN profile in DSM UI
+          
+          ═══════════════════════════════════════════════════════════
+
+    - name: Confirm uninstall
+      ansible.builtin.pause:
+        prompt: "Type 'yes' to proceed with uninstall"
+      register: confirm
+
+    - name: Abort if not confirmed
+      ansible.builtin.fail:
+        msg: "Uninstall cancelled"
+      when: confirm.user_input | lower != 'yes'
+
+    - name: Disable kill switch
+      ansible.builtin.shell: |
+        iptables -F OUTPUT
+        iptables -F INPUT
+        iptables -P OUTPUT ACCEPT
+        iptables -P INPUT ACCEPT
+      failed_when: false
+
+    - name: Remove VPN monitor cron job
+      ansible.builtin.cron:
+        name: "ProtonVPN monitor"
+        state: absent
+        user: root
+
+    - name: Remove config directory
+      ansible.builtin.file:
+        path: "{{ vpn_config_dir }}"
+        state: absent
+
+    - name: "MANUAL STEP: Remove VPN profile from DSM"
+      ansible.builtin.pause:
+        prompt: |
+          
+          ═══════════════════════════════════════════════════════════
+          MANUAL STEP: Remove VPN Profile
+          ═══════════════════════════════════════════════════════════
+          
+          1. Open DSM: https://{{ synology_ip }}:5001
+          
+          2. Go to: Control Panel → Network → Network Interface
+          
+          3. Select the VPN profile ({{ vpn_profile_name }})
+          
+          4. Click "Disconnect" if connected
+          
+          5. Click "Delete" to remove the profile
+          
+          ═══════════════════════════════════════════════════════════
+          
+          Press Enter when complete
+
+    - name: Uninstall complete
+      ansible.builtin.debug:
+        msg: |
+          
+          ═══════════════════════════════════════════════════════════
+          ✅ ProtonVPN Uninstalled
+          ═══════════════════════════════════════════════════════════
+          
+          Kill switch:   Disabled
+          Config files:  Removed
+          VPN profile:   (removed manually from DSM)
+          
+          Normal network access has been restored.
+          
+          ═══════════════════════════════════════════════════════════

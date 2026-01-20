@@ -1,0 +1,69 @@
+# status.yml - Check ProtonVPN status on Synology
+#
+# Usage:
+#   ansible-playbook status.yml -i inventory.yml
+
+---
+- name: Check ProtonVPN Status
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  become: yes
+
+  pre_tasks:
+    - name: Load configuration
+      ansible.builtin.include_vars:
+        file: vars/default.yml
+
+  tasks:
+    - name: Check VPN interface
+      ansible.builtin.shell: ip addr show tun0 2>/dev/null | grep -q "state UP"
+      register: tun_status
+      failed_when: false
+      changed_when: false
+
+    - name: Get VPN IP address
+      ansible.builtin.shell: ip addr show tun0 2>/dev/null | grep "inet " | awk '{print $2}'
+      register: tun_ip
+      failed_when: false
+      changed_when: false
+
+    - name: Get public IP
+      ansible.builtin.shell: curl -s --max-time 10 https://api.ipify.org || echo "Unable to determine"
+      register: public_ip
+      changed_when: false
+
+    - name: Check kill switch status
+      ansible.builtin.shell: iptables -L OUTPUT -n | grep -q "DROP"
+      register: killswitch_status
+      failed_when: false
+      changed_when: false
+
+    - name: Check config files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: config_files
+      loop:
+        - "{{ vpn_config_dir }}/protonvpn.ovpn"
+        - "{{ vpn_config_dir }}/killswitch.sh"
+        - "{{ vpn_config_dir }}/vpn-monitor.sh"
+
+    - name: Display status
+      ansible.builtin.debug:
+        msg: |
+          
+          ═══════════════════════════════════════════════════════════
+          ProtonVPN Status
+          ═══════════════════════════════════════════════════════════
+          
+          VPN Connection:  {{ '✅ Connected' if tun_status.rc == 0 else '❌ Disconnected' }}
+          VPN IP:          {{ tun_ip.stdout | default('N/A') }}
+          Public IP:       {{ public_ip.stdout }}
+          Kill Switch:     {{ '✅ Enabled' if killswitch_status.rc == 0 else '❌ Disabled' }}
+          
+          Config Files:
+          {% for item in config_files.results %}
+            {{ item.item | basename }}: {{ '✅' if item.stat.exists else '❌' }}
+          {% endfor %}
+          
+          ═══════════════════════════════════════════════════════════

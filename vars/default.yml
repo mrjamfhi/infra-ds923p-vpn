@@ -1,0 +1,42 @@
+# vars/default.yml - ProtonVPN configuration for Synology
+#
+# Update these values before running the playbook.
+
+---
+# =============================================================================
+# ProtonVPN Configuration
+# =============================================================================
+
+# VPN profile name (shown in DSM UI)
+vpn_profile_name: "ProtonVPN_UK"
+
+# ProtonVPN server to connect to
+# Download config from: https://account.protonvpn.com/downloads
+# Recommended: Choose a server geographically close to you
+vpn_server_hostname: "uk.protonvpn.net"
+
+# OpenVPN protocol (udp recommended, tcp for restrictive networks)
+vpn_protocol: "udp"
+
+# =============================================================================
+# Network Configuration
+# =============================================================================
+
+# Local network CIDR (traffic to local network bypasses VPN)
+local_network_cidr: "10.0.4.0/24"
+
+# Synology IP address
+synology_ip: "10.0.4.2"
+
+# DNS servers to use when VPN is connected (ProtonVPN DNS)
+vpn_dns_primary: "10.8.8.1"
+
+# =============================================================================
+# Paths
+# =============================================================================
+
+# Where to store VPN config files on Synology
+vpn_config_dir: "/volume1/vpn-config"
+
+# OpenVPN config file (download from ProtonVPN and place here)
+ovpn_config_file: "{{ vpn_config_dir }}/protonvpn.ovpn"

@@ -1,0 +1,472 @@
+# setup.yml - ProtonVPN Setup for Synology DSM
+#
+# This playbook guides you through setting up ProtonVPN on Synology.
+# Some steps require manual action in the DSM web UI.
+# Ansible will pause and wait for you to complete each manual step.
+#
+# Prerequisites:
+#   1. ProtonVPN account (protonvpn.com)
+#   2. SSH access to Synology
+#   3. Admin access to DSM web UI
+#
+# Usage:
+#   ansible-playbook setup.yml -i inventory.yml
+#
+# Estimated time: 10-15 minutes
+
+---
+- name: ProtonVPN Setup for Synology
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+  become: yes
+
+  pre_tasks:
+    - name: Load configuration
+      ansible.builtin.include_vars:
+        file: vars/default.yml
+
+    - name: Display setup overview
+      ansible.builtin.debug:
+        msg: |
+          
+          ═══════════════════════════════════════════════════════════
+          ProtonVPN Setup for Synology DSM
+          ═══════════════════════════════════════════════════════════
+          
+          This playbook will guide you through:
+            1. Downloading OpenVPN configuration
+            2. Getting ProtonVPN credentials
+            3. Creating VPN profile in DSM
+            4. Configuring kill switch (firewall rules)
+            5. Testing the connection
+          
+          You will need:
+            - ProtonVPN account credentials
+            - Access to DSM web UI (https://{{ synology_ip }}:5001)
+            - A web browser
+          
+          ═══════════════════════════════════════════════════════════
+
+    - name: Confirm ready to proceed
+      ansible.builtin.pause:
+        prompt: "Press Enter when ready to begin setup"
+
+  tasks:
+    # =========================================================================
+    # Step 1: Prepare Configuration Directory
+    # =========================================================================
+
+    - name: Create VPN config directory
+      ansible.builtin.file:
+        path: "{{ vpn_config_dir }}"
+        state: directory
+        mode: '0700'
+        owner: root
+        group: root
+
+    # =========================================================================
+    # Step 2: Download OpenVPN Configuration (Manual)
+    # =========================================================================
+
+    - name: "MANUAL STEP: Download OpenVPN configuration"
+      ansible.builtin.pause:
+        prompt: |
+          
+          ═══════════════════════════════════════════════════════════
+          STEP 1: Download OpenVPN Configuration File
+          ═══════════════════════════════════════════════════════════
+          
+          1. On your computer, open browser and go to:
+             https://account.protonvpn.com/downloads
+          
+          2. Scroll to "OpenVPN configuration files"
+          
+          3. Select:
+             - Platform: Router
+             - Protocol: UDP (recommended)
+          
+          4. Choose a server (e.g., UK, Netherlands, Switzerland)
+             Click "Download" next to your chosen server
+          
+          5. Copy the .ovpn file to Synology:
+          
+             Option A - From your computer:
+               scp ~/Downloads/*.ovpn jamie@synology:{{ vpn_config_dir }}/protonvpn.ovpn
+          
+             Option B - Direct on Synology (if you have the URL):
+               wget -O {{ vpn_config_dir }}/protonvpn.ovpn "URL_FROM_PROTONVPN"
+          
+          ═══════════════════════════════════════════════════════════
+          
+          Press Enter when you have copied the .ovpn file to {{ vpn_config_dir }}/
+
+    - name: Check if OpenVPN config exists
+      ansible.builtin.stat:
+        path: "{{ ovpn_config_file }}"
+      register: ovpn_stat
+
+    - name: Fail if config not found
+      ansible.builtin.fail:
+        msg: |
+          OpenVPN config not found at {{ ovpn_config_file }}
+          Please copy the .ovpn file and try again.
+      when: not ovpn_stat.stat.exists
+
+    - name: Config file found
+      ansible.builtin.debug:
+        msg: "✅ OpenVPN config found: {{ ovpn_config_file }}"
+
+    # =========================================================================
+    # Step 3: Get OpenVPN Credentials (Manual)
+    # =========================================================================
+
+    - name: "MANUAL STEP: Get OpenVPN credentials"
+      ansible.builtin.pause:
+        prompt: |
+          
+          ═══════════════════════════════════════════════════════════
+          STEP 2: Get Your OpenVPN Credentials
+          ═══════════════════════════════════════════════════════════
+          
+          ⚠️  IMPORTANT: OpenVPN credentials are DIFFERENT from your
+          regular ProtonVPN login!
+          
+          1. Go to: https://account.protonvpn.com/account
+          
+          2. Scroll down to "OpenVPN / IKEv2 username"
+          
+          3. Note down:
+             - Username (looks like: aBcDeFgHiJkL...)
+             - Password (click "Show" to reveal)
+          
+          4. OPTIONAL: To enable NetShield (ad/malware blocking):
+             - Add +f1 to username for malware blocking
+             - Add +f2 to username for malware + ads + trackers
+             Example: aBcDeFgHiJkL+f2
+          
+          ═══════════════════════════════════════════════════════════
+          
+          Press Enter when you have your OpenVPN credentials ready
+
+    # =========================================================================
+    # Step 4: Create VPN Profile in DSM (Manual)
+    # =========================================================================
+
+    - name: "MANUAL STEP: Create VPN Profile in DSM"
+      ansible.builtin.pause:
+        prompt: |
+          
+          ═══════════════════════════════════════════════════════════
+          STEP 3: Create VPN Profile in DSM
+          ═══════════════════════════════════════════════════════════
+          
+          1. Open DSM in your browser:
+             https://{{ synology_ip }}:5001
+          
+          2. Go to: Control Panel → Network → Network Interface
+          
+          3. Click: Create → Create VPN Profile
+          
+          4. Select: "OpenVPN (via importing a .ovpn file)"
+             Click Next
+          
+          5. Fill in:
+             - Profile name: {{ vpn_profile_name }}
+             - Username: [Your OpenVPN username from Step 2]
+             - Password: [Your OpenVPN password from Step 2]
+             - Import .ovpn file: Browse to {{ ovpn_config_file }}
+             
+             Click Next
+          
+          6. Advanced settings:
+             ✅ Use default gateway on remote network
+             ✅ Allow other network devices to connect through...
+             ✅ Reconnect when the VPN connection is lost
+             
+             Click Apply
+          
+          7. Select the new VPN profile and click "Connect"
+          
+          8. Wait for status to show "Connected"
+          
+          ═══════════════════════════════════════════════════════════
+          
+          Press Enter when VPN is connected and showing "Connected" status
+
+    # =========================================================================
+    # Step 5: Verify VPN Connection
+    # =========================================================================
+
+    - name: Check VPN interface exists
+      ansible.builtin.shell: ip addr show tun0
+      register: tun_check
+      failed_when: false
+      changed_when: false
+
+    - name: VPN connection status
+      ansible.builtin.debug:
+        msg: "{{ '✅ VPN interface tun0 is UP' if tun_check.rc == 0 else '❌ VPN interface tun0 not found - connection may have failed' }}"
+
+    - name: Get current public IP
+      ansible.builtin.shell: curl -s https://api.ipify.org || echo "Could not determine IP"
+      register: public_ip
+      changed_when: false
+
+    - name: Display public IP
+      ansible.builtin.debug:
+        msg: |
+          
+          Current public IP: {{ public_ip.stdout }}
+          
+          Verify this is a ProtonVPN IP, not your home IP.
+          Check at: https://ip.me
+
+    - name: Confirm VPN working
+      ansible.builtin.pause:
+        prompt: |
+          
+          ═══════════════════════════════════════════════════════════
+          STEP 4: Verify VPN Connection
+          ═══════════════════════════════════════════════════════════
+          
+          Your public IP is: {{ public_ip.stdout }}
+          
+          1. Go to https://ip.me in your browser
+          2. Confirm the IP matches and shows ProtonVPN's location
+          
+          If the IP is your home IP, the VPN is NOT working.
+          Go back to DSM and check the connection status.
+          
+          ═══════════════════════════════════════════════════════════
+          
+          Press Enter if VPN is working correctly
+
+    # =========================================================================
+    # Step 6: Configure Kill Switch (Firewall Rules)
+    # =========================================================================
+
+    - name: "Configuring kill switch (firewall rules)"
+      ansible.builtin.debug:
+        msg: "Setting up iptables rules to block non-VPN traffic..."
+
+    - name: Create iptables kill switch script
+      ansible.builtin.copy:
+        dest: "{{ vpn_config_dir }}/killswitch.sh"
+        mode: '0700'
+        content: |
+          #!/bin/bash
+          # ProtonVPN Kill Switch for Synology
+          # Blocks all outbound traffic except through VPN (tun0)
+          #
+          # Generated by pod-synology-vpn
+          
+          # Flush existing rules
+          iptables -F OUTPUT
+          iptables -F INPUT
+          
+          # Allow loopback
+          iptables -A OUTPUT -o lo -j ACCEPT
+          iptables -A INPUT -i lo -j ACCEPT
+          
+          # Allow established connections
+          iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+          iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+          
+          # Allow local network traffic (adjust CIDR as needed)
+          iptables -A OUTPUT -d {{ local_network_cidr }} -j ACCEPT
+          iptables -A INPUT -s {{ local_network_cidr }} -j ACCEPT
+          
+          # Allow DNS to VPN DNS server
+          iptables -A OUTPUT -d {{ vpn_dns_primary }} -p udp --dport 53 -j ACCEPT
+          
+          # Allow traffic through VPN interface
+          iptables -A OUTPUT -o tun0 -j ACCEPT
+          iptables -A INPUT -i tun0 -j ACCEPT
+          
+          # Allow VPN connection establishment (UDP 1194 or TCP 443)
+          # Note: This allows initial connection to VPN server
+          iptables -A OUTPUT -p udp --dport 1194 -j ACCEPT
+          iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
+          
+          # Block everything else
+          iptables -A OUTPUT -j DROP
+          
+          echo "Kill switch enabled - all non-VPN traffic blocked"
+
+    - name: Create kill switch disable script
+      ansible.builtin.copy:
+        dest: "{{ vpn_config_dir }}/killswitch-disable.sh"
+        mode: '0700'
+        content: |
+          #!/bin/bash
+          # Disable ProtonVPN Kill Switch
+          # Restores normal network access
+          
+          # Flush rules
+          iptables -F OUTPUT
+          iptables -F INPUT
+          
+          # Set default policies to ACCEPT
+          iptables -P OUTPUT ACCEPT
+          iptables -P INPUT ACCEPT
+          
+          echo "Kill switch disabled - normal network access restored"
+
+    - name: Display kill switch info
+      ansible.builtin.debug:
+        msg: |
+          
+          ═══════════════════════════════════════════════════════════
+          Kill Switch Scripts Created
+          ═══════════════════════════════════════════════════════════
+          
+          Enable kill switch (block non-VPN traffic):
+            sudo {{ vpn_config_dir }}/killswitch.sh
+          
+          Disable kill switch (restore normal access):
+            sudo {{ vpn_config_dir }}/killswitch-disable.sh
+          
+          ⚠️  WARNING: Enabling the kill switch will block ALL internet
+          traffic if the VPN disconnects. This is intentional - it
+          prevents data leaks.
+          
+          ═══════════════════════════════════════════════════════════
+
+    - name: Ask about enabling kill switch
+      ansible.builtin.pause:
+        prompt: |
+          
+          Do you want to enable the kill switch now?
+          
+          This will block all internet traffic except through VPN.
+          If VPN disconnects, you will lose internet until it reconnects
+          or you disable the kill switch.
+          
+          Type 'yes' to enable, or press Enter to skip
+
+      register: killswitch_prompt
+
+    - name: Enable kill switch
+      ansible.builtin.shell: "{{ vpn_config_dir }}/killswitch.sh"
+      when: killswitch_prompt.user_input | lower == 'yes'
+
+    - name: Kill switch status
+      ansible.builtin.debug:
+        msg: "{{ '✅ Kill switch ENABLED' if killswitch_prompt.user_input | lower == 'yes' else '⏭️  Kill switch skipped - run manually when ready' }}"
+
+    # =========================================================================
+    # Step 7: Setup Auto-Reconnect Monitoring (Optional)
+    # =========================================================================
+
+    - name: Create VPN monitor script
+      ansible.builtin.copy:
+        dest: "{{ vpn_config_dir }}/vpn-monitor.sh"
+        mode: '0700'
+        content: |
+          #!/bin/bash
+          # VPN Connection Monitor
+          # Checks VPN status, logs events, and sends DSM notifications
+          #
+          # Add to cron: */5 * * * * {{ vpn_config_dir }}/vpn-monitor.sh
+          
+          LOG_FILE="{{ vpn_config_dir }}/vpn-monitor.log"
+          STATE_FILE="{{ vpn_config_dir }}/.vpn-state"
+          
+          # Get current state
+          if ip addr show tun0 > /dev/null 2>&1; then
+              CURRENT_STATE="connected"
+          else
+              CURRENT_STATE="disconnected"
+          fi
+          
+          # Get previous state (default to unknown)
+          PREVIOUS_STATE=$(cat "$STATE_FILE" 2>/dev/null || echo "unknown")
+          
+          # Log current state
+          TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+          
+          if [ "$CURRENT_STATE" = "connected" ]; then
+              echo "$TIMESTAMP VPN: Connected" >> "$LOG_FILE"
+          else
+              echo "$TIMESTAMP VPN: DISCONNECTED!" >> "$LOG_FILE"
+          fi
+          
+          # Send notification on state CHANGE only (avoid spam)
+          if [ "$CURRENT_STATE" != "$PREVIOUS_STATE" ]; then
+              if [ "$CURRENT_STATE" = "disconnected" ]; then
+                  # VPN just disconnected - send alert
+                  synodsmnotify @administrators "VPN Alert" "ProtonVPN connection LOST! Kill switch may be blocking traffic."
+                  echo "$TIMESTAMP NOTIFICATION: Disconnect alert sent" >> "$LOG_FILE"
+              elif [ "$CURRENT_STATE" = "connected" ] && [ "$PREVIOUS_STATE" = "disconnected" ]; then
+                  # VPN reconnected - send recovery notice
+                  synodsmnotify @administrators "VPN Restored" "ProtonVPN connection restored."
+                  echo "$TIMESTAMP NOTIFICATION: Reconnect notice sent" >> "$LOG_FILE"
+              fi
+          fi
+          
+          # Save current state
+          echo "$CURRENT_STATE" > "$STATE_FILE"
+          
+          # Keep log file from growing too large (last 1000 lines)
+          tail -1000 "$LOG_FILE" > "$LOG_FILE.tmp" && mv "$LOG_FILE.tmp" "$LOG_FILE"
+
+    - name: Setup cron job for VPN monitoring
+      ansible.builtin.cron:
+        name: "ProtonVPN monitor"
+        minute: "*/5"
+        job: "{{ vpn_config_dir }}/vpn-monitor.sh"
+        user: root
+
+    # =========================================================================
+    # Summary
+    # =========================================================================
+
+    - name: Setup complete
+      ansible.builtin.debug:
+        msg: |
+          
+          ═══════════════════════════════════════════════════════════
+          ✅ ProtonVPN Setup Complete
+          ═══════════════════════════════════════════════════════════
+          
+          VPN Profile:     {{ vpn_profile_name }}
+          Config Dir:      {{ vpn_config_dir }}
+          Kill Switch:     {{ 'ENABLED' if killswitch_prompt.user_input | lower == 'yes' else 'Not enabled (run killswitch.sh manually)' }}
+          Monitoring:      Cron job every 5 minutes
+          Notifications:   DSM alerts on connect/disconnect
+          
+          Files created on Synology:
+            {{ vpn_config_dir }}/protonvpn.ovpn        - OpenVPN config
+            {{ vpn_config_dir }}/killswitch.sh        - Enable kill switch
+            {{ vpn_config_dir }}/killswitch-disable.sh - Disable kill switch
+            {{ vpn_config_dir }}/vpn-monitor.sh       - Connection monitor
+          
+          ─────────────────────────────────────────────────────────────
+          MAINTENANCE COMMANDS
+          ─────────────────────────────────────────────────────────────
+          
+          Check VPN status:
+            ip addr show tun0
+          
+          Check public IP:
+            curl https://api.ipify.org
+          
+          Enable kill switch:
+            sudo {{ vpn_config_dir }}/killswitch.sh
+          
+          Disable kill switch:
+            sudo {{ vpn_config_dir }}/killswitch-disable.sh
+          
+          View monitor log:
+            tail -f {{ vpn_config_dir }}/vpn-monitor.log
+          
+          ─────────────────────────────────────────────────────────────
+          DSM UI MANAGEMENT
+          ─────────────────────────────────────────────────────────────
+          
+          Connect/Disconnect VPN:
+            Control Panel → Network → Network Interface
+            Select {{ vpn_profile_name }} → Connect/Disconnect
+          
+          ═══════════════════════════════════════════════════════════
